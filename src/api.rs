@@ -26,6 +26,7 @@ pub struct Attributes {
 pub struct Query<T> {
     #[serde(rename = "@attributes")]
     pub attributes: Attributes,
+    #[serde(default = "Vec::new")]
     pub post: Vec<T>,
 }
 

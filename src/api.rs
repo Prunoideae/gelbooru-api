@@ -4,7 +4,7 @@
 
 use crate::{Client, Error};
 use hyper::body::Buf;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::{AsRef, Into};
@@ -16,13 +16,13 @@ const API_BASE: &'static str = "https://gelbooru.com/index.php?page=dapi&q=index
 
 type QueryStrings<'a> = HashMap<&'a str, String>;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct Attributes {
     pub limit: usize,
     pub offset: usize,
     pub count: usize,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct Query<T> {
     #[serde(rename = "@attributes")]
     pub attributes: Attributes,
@@ -30,10 +30,11 @@ pub struct Query<T> {
 }
 
 /// Post on Gelbooru
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct Post {
     pub source: String,
     pub directory: String,
+    #[serde(rename = "md5")]
     pub hash: String,
     pub height: u64,
     pub id: u64,

@@ -16,6 +16,19 @@ const API_BASE: &'static str = "https://gelbooru.com/index.php?page=dapi&q=index
 
 type QueryStrings<'a> = HashMap<&'a str, String>;
 
+#[derive(Deserialize, Debug)]
+pub struct Attributes {
+    pub limit: usize,
+    pub offset: usize,
+    pub count: usize,
+}
+#[derive(Deserialize, Debug)]
+pub struct Query<T> {
+    #[serde(rename = "@attributes")]
+    pub attributes: Attributes,
+    pub post: Vec<T>,
+}
+
 /// Post on Gelbooru
 #[derive(Deserialize, Debug)]
 pub struct Post {
@@ -259,7 +272,7 @@ impl<'a> PostsRequestBuilder<'a> {
         self
     }
 
-    pub async fn send(self, client: &Client) -> Result<Vec<Post>, Error> {
+    pub async fn send(self, client: &Client) -> Result<Query<Post>, Error> {
         let mut tags = String::new();
         if let Some(rating) = self.rating {
             tags.push_str(&format!("rating:{:?}+", rating).to_lowercase());
@@ -434,7 +447,7 @@ impl TagsRequestBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn send(self, client: &Client) -> Result<Vec<Tag>, Error> {
+    pub async fn send(self, client: &Client) -> Result<Query<Tag>, Error> {
         self.search(client, None).await
     }
 
@@ -454,7 +467,7 @@ impl TagsRequestBuilder {
         let search = TagSearch::Name(name.as_ref());
         self.search(client, Some(search))
             .await
-            .map(|tags| tags.into_iter().next())
+            .map(|tags| tags.post.into_iter().next())
     }
 
     /// Pull data for the specified tags
@@ -475,7 +488,7 @@ impl TagsRequestBuilder {
         self,
         client: &Client,
         names: &[S],
-    ) -> Result<Vec<Tag>, Error> {
+    ) -> Result<Query<Tag>, Error> {
         let names = names.iter().map(|name| name.as_ref()).collect();
         let search = TagSearch::Names(names);
         self.search(client, Some(search)).await
@@ -501,7 +514,7 @@ impl TagsRequestBuilder {
         self,
         client: &Client,
         pattern: S,
-    ) -> Result<Vec<Tag>, Error> {
+    ) -> Result<Query<Tag>, Error> {
         let search = TagSearch::Pattern(pattern.as_ref());
         self.search(client, Some(search)).await
     }
@@ -510,7 +523,7 @@ impl TagsRequestBuilder {
         self,
         client: &Client,
         search: Option<TagSearch<'_>>,
-    ) -> Result<Vec<Tag>, Error> {
+    ) -> Result<Query<Tag>, Error> {
         let limit = self.limit.unwrap_or_else(|| {
             use TagSearch::*;
             match &search {
@@ -576,7 +589,10 @@ pub async fn comments(client: &Client, post_id: u64) -> Result<Vec<Comment>, Err
 */
 
 // internal function as to DRY
-async fn query_api<T: ApiType>(client: &Client, mut qs: QueryStrings<'_>) -> Result<Vec<T>, Error> {
+async fn query_api<T: ApiType>(
+    client: &Client,
+    mut qs: QueryStrings<'_>,
+) -> Result<Query<T>, Error> {
     if let Some(auth) = &client.auth {
         qs.insert("user_id", auth.user.to_string());
         qs.insert("api_key", auth.key.clone());
